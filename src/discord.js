@@ -47,13 +47,17 @@ export async function initDiscord() {
       const res = await fetch("/api/token", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }),
       });
-      const { access_token } = await res.json();
-      if (access_token) {
-        const auth = await sdk.commands.authenticate({ access_token });
+      const tok = await res.json().catch(() => ({}));
+      if (!tok.access_token) {
+        result.authError = "token:" + (tok.error || res.status);
+      } else {
+        const auth = await withTimeout(sdk.commands.authenticate({ access_token: tok.access_token }), 6000, "authenticate");
         result.username = auth?.user?.global_name || auth?.user?.username;
+        if (!result.username) result.authError = "no-username";
       }
     } catch (e) {
-      console.warn("[discord] name lookup skipped:", e.message);
+      result.authError = e.message;
+      console.warn("[discord] name lookup failed:", e.message);
     }
   } catch (e) {
     console.warn("[discord] SDK init failed, running with query-param room:", e.message);

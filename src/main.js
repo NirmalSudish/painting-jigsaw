@@ -612,12 +612,11 @@ initDiscord().then((d) => { showDiag(d); applyDiscord(d); }).catch((e) => showDi
 // when something's off, or when ?debug is in the URL.
 function showDiag(d) {
   const debug = new URLSearchParams(location.search).has("debug");
-  const problem = (d?.inDiscord && !d?.instanceId) || !!d?.error;
+  const problem = (d?.inDiscord && (!d?.instanceId || !d?.username)) || !!d?.error;
   if (!debug && !problem) return;
-  const q = location.search || "(none)";
   const el = document.createElement("div");
   el.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9999;max-width:90vw;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.85);color:#9effa1;font:11px/1.4 monospace;white-space:pre-wrap;cursor:pointer";
-  el.textContent = `DIAG  inDiscord=${d?.inDiscord} instance=${d?.instanceId || "-"} err=${d?.error?.message || d?.error || "-"}\nquery=${q}`;
+  el.textContent = `DIAG inDiscord=${d?.inDiscord} name=${d?.username || "-"} authErr=${d?.authError || "-"} sdkErr=${d?.error?.message || d?.error || "-"}`;
   el.onclick = () => el.remove();
   document.body.appendChild(el);
 }
