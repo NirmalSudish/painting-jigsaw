@@ -17,46 +17,46 @@
 
 const CLIENT_ID = "1513594815617437706"; // Discord application Client ID
 
-function inDiscord() {
-  return new URLSearchParams(location.search).has("frame_id");
-}
+const withTimeout = (p, ms, label) =>
+  Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(label + " timeout")), ms))]);
 
 export async function initDiscord() {
-  if (!inDiscord()) return { inDiscord: false };
-  if (!CLIENT_ID) {
-    console.warn("[discord] Set CLIENT_ID in src/discord.js to run as an Activity.");
-    return { inDiscord: true, error: "missing CLIENT_ID" };
-  }
+  // Discord injects these as query params on the activity iframe. Reading them
+  // directly means the lobby works even if the SDK handshake is slow or fails.
+  const params = new URLSearchParams(location.search);
+  const frameId = params.get("frame_id");
+  const instanceParam = params.get("instance_id");
+  if (!frameId && !instanceParam) return { inDiscord: false };
+
+  // shared room key from the query param — available immediately, no SDK needed
+  const result = { inDiscord: true, instanceId: instanceParam || frameId };
+  if (!CLIENT_ID) { console.warn("[discord] CLIENT_ID not set"); return result; }
+
   try {
     const { DiscordSDK } = await import("../vendor/discord-sdk.js");
     const sdk = new DiscordSDK(CLIENT_ID);
-    await sdk.ready();
+    await withTimeout(sdk.ready(), 5000, "ready");
+    result.sdk = sdk;
+    if (sdk.instanceId) result.instanceId = sdk.instanceId;
 
-    let username;
+    // optional: resolve the player's Discord name (needs /api/token + secret)
     try {
-      const { code } = await sdk.commands.authorize({
-        client_id: CLIENT_ID,
-        response_type: "code",
-        state: "",
-        prompt: "none",
-        scope: ["identify"],
-      });
+      const { code } = await withTimeout(sdk.commands.authorize({
+        client_id: CLIENT_ID, response_type: "code", state: "", prompt: "none", scope: ["identify"],
+      }), 6000, "authorize");
       const res = await fetch("/api/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }),
       });
       const { access_token } = await res.json();
-      const auth = await sdk.commands.authenticate({ access_token });
-      username = auth?.user?.global_name || auth?.user?.username;
+      if (access_token) {
+        const auth = await sdk.commands.authenticate({ access_token });
+        result.username = auth?.user?.global_name || auth?.user?.username;
+      }
     } catch (e) {
-      // OAuth is optional — run anonymously if there's no /api/token endpoint.
+      console.warn("[discord] name lookup skipped:", e.message);
     }
-    // instanceId is unique per launched activity in a voice channel -> use it as
-    // the room code so everyone who joins the activity shares one puzzle.
-    return { inDiscord: true, sdk, username, instanceId: sdk.instanceId };
   } catch (e) {
-    console.warn("[discord] SDK init failed:", e);
-    return { inDiscord: true, error: e };
+    console.warn("[discord] SDK init failed, running with query-param room:", e.message);
   }
+  return result; // always has inDiscord + instanceId so the lobby can run
 }

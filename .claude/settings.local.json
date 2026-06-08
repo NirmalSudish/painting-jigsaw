@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --check src/discord.js)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'Discord: derive room from query params + timeout SDK so lobby always runs *)",
+      "Bash(git push *)"
+    ]
+  }
+}
