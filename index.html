@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painting Jigsaw</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ===== Setup screen ===== -->
+  <div id="setup" class="screen">
+    <div class="setup-card">
+      <h1>🧩 Painting Jigsaw <span class="badge">Activity</span></h1>
+      <p class="sub">Pick a masterpiece, choose your difficulty, drag the pieces home.</p>
+
+      <div class="row">
+        <div class="col">
+          <label class="field-label">Your name</label>
+          <input id="player-name" class="name-input" type="text" maxlength="16" placeholder="Player" />
+        </div>
+        <div class="col">
+          <label class="field-label">Room code <span class="hint-inline">(share to play together)</span></label>
+          <input id="room-code" class="name-input" type="text" maxlength="8" placeholder="blank = new room" />
+        </div>
+      </div>
+
+      <label class="field-label">Painting</label>
+      <div id="gallery" class="gallery"></div>
+
+      <label class="field-label">Number of pieces</label>
+      <div id="piece-options" class="piece-options"></div>
+
+      <details class="custom">
+        <summary>Use your own image instead</summary>
+        <input id="custom-url" type="text" placeholder="Paste an image URL (https://...)" />
+        <span class="or">or</span>
+        <input id="custom-file" type="file" accept="image/*" />
+      </details>
+
+      <button id="start-btn" class="primary" disabled>Choose a painting to start</button>
+      <p id="setup-error" class="error"></p>
+    </div>
+  </div>
+
+  <!-- ===== Game screen ===== -->
+  <div id="game" class="screen hidden">
+    <div id="hud-info" class="hud-info"></div>
+
+    <div id="stage" class="stage">
+      <div id="world" class="world">
+        <div id="board" class="board"></div>
+        <div id="piece-layer" class="piece-layer"></div>
+        <!-- player cursor labels live inside the shared world so positions match -->
+        <div id="cursors" class="cursors"></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button id="back-btn" class="tool" title="Back to menu">☰</button>
+      <button id="preview-btn" class="tool" title="Show finished image">🖼</button>
+      <button id="ghost-btn" class="tool" title="Toggle faint ghost on board">👁</button>
+      <button id="shuffle-btn" class="tool" title="Shuffle loose pieces">🔀</button>
+      <button id="sound-btn" class="tool active" title="Sound on/off">🔊</button>
+      <div class="tool-spacer"></div>
+      <div class="stat" title="Progress"><span id="progress">0%</span></div>
+      <div class="stat" title="Time"><span id="timer">0:00</span></div>
+    </div>
+
+    <!-- full-image preview overlay -->
+    <div id="preview" class="preview hidden">
+      <img id="preview-img" alt="finished painting" />
+      <span class="preview-hint">click to close</span>
+    </div>
+
+    <div id="win" class="win hidden">
+      <div class="win-card">
+        <h2>🎉 Solved!</h2>
+        <p id="win-text"></p>
+        <button id="win-again" class="primary">Play another</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
