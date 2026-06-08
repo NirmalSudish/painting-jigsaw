@@ -65,7 +65,13 @@ const server = http.createServer((req, res) => {
   if (!file.startsWith(ROOT)) { res.writeHead(403).end(); return; }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404).end("Not found"); return; }
-    res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream" });
+    const ext = path.extname(file);
+    // never cache code/markup so a new deploy shows up on the next launch;
+    // images are content-stable, let them cache.
+    const cache = [".jpg", ".png", ".svg", ".ico"].includes(ext)
+      ? "public, max-age=86400"
+      : "no-cache";
+    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream", "Cache-Control": cache });
     res.end(data);
   });
 });
