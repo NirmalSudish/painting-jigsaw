@@ -1,8 +1,8 @@
-import { PAINTINGS, PIECE_PRESETS } from "./paintings.js?v=4";
-import { buildPuzzle } from "./puzzle.js?v=4";
-import { net } from "./net.js?v=4";
-import { sfx } from "./audio.js?v=4";
-import { initDiscord } from "./discord.js?v=4";
+import { PAINTINGS, PIECE_PRESETS } from "./paintings.js?v=5";
+import { buildPuzzle } from "./puzzle.js?v=5";
+import { net } from "./net.js?v=5";
+import { sfx } from "./audio.js?v=5";
+import { initDiscord } from "./discord.js?v=5";
 
 const $ = (id) => document.getElementById(id);
 const COLORS = ["#5865f2", "#57f287", "#fee75c", "#eb459e", "#4ad9e4", "#f0883e", "#9b59ff"];
@@ -74,6 +74,11 @@ function refreshStart() {
 $("player-name").addEventListener("input", (e) => { state.name = e.target.value.trim() || "Player"; });
 $("room-code").addEventListener("input", (e) => { state.room = e.target.value.trim().toUpperCase(); refreshStart(); });
 $("custom-url").addEventListener("input", (e) => { const v = e.target.value.trim(); if (v) selectPainting(null, v, "Custom image"); });
+$("max-players").addEventListener("change", (e) => {
+  const v = Math.max(2, Math.min(25, parseInt(e.target.value, 10) || 10));
+  e.target.value = v;
+  net.settings(v);
+});
 $("custom-file").addEventListener("change", (e) => {
   const f = e.target.files[0];
   if (!f) return;
@@ -160,44 +165,64 @@ async function onStartClick() {
 
 // Discord: connect immediately, then route to host-picker / waiting / late-join.
 async function enterDiscord() {
-  $("setup").classList.add("hidden");
-  $("lobby").classList.remove("hidden");
-  $("lobby-msg").textContent = "Connecting…";
+  lobbyShell();
+  $("waiting-note").textContent = "Connecting…";
+  $("waiting-note").classList.remove("hidden");
   const res = await net.connect(state.room, state.name, state.color, null);
+  if (res.full) { $("waiting-note").textContent = `Room is full (max ${res.maxPlayers}).`; return; }
   state.myId = res.id;
   state.adminId = res.adminId;
-  renderLobbyPlayers();
+  if (res.maxPlayers) $("max-players").value = res.maxPlayers;
+  renderPlayerCards();
   if (res.solo) { showHostPicker(); return; }           // no server: host solo
   if (res.config) { await beginGame(res.config, res.pieces, false, state.room); return; }
   state.amAdmin = res.adminId === res.id;
   if (state.amAdmin) showHostPicker(); else showWaiting();
 }
 
+// shared lobby layout: players list visible, manual name/room hidden
+function lobbyShell() {
+  $("setup").classList.remove("hidden");
+  $("game").classList.add("hidden");
+  $("manual-fields").classList.add("hidden");
+  $("players-section").classList.remove("hidden");
+  $("discord-note").classList.remove("hidden");
+  $("host-settings").classList.add("hidden");
+}
+
 function showHostPicker() {
   state.lobby = true;
-  $("lobby").classList.add("hidden");
-  $("setup").classList.remove("hidden");
-  const note = $("discord-note");
-  note.textContent = `You're the host, ${state.name}. Pick a puzzle and press Start — everyone in the channel joins automatically.`;
-  note.classList.remove("hidden");
+  lobbyShell();
+  $("host-settings").classList.remove("hidden");
+  $("settings-head").classList.remove("hidden");
+  $("maxplayers-wrap").classList.remove("hidden");
+  $("waiting-note").classList.add("hidden");
+  renderPlayerCards();
   refreshStart();
 }
 
 function showWaiting() {
   state.lobby = false;
-  $("setup").classList.add("hidden");
-  $("lobby").classList.remove("hidden");
-  $("lobby-msg").textContent = "Waiting for the host to choose a puzzle…";
-  renderLobbyPlayers();
+  lobbyShell();
+  $("waiting-note").textContent = "Waiting for the host to start…";
+  $("waiting-note").classList.remove("hidden");
+  renderPlayerCards();
 }
 
-function renderLobbyPlayers() {
+function avatarHtml(name, color) {
+  const ch = (name || "?").trim().charAt(0).toUpperCase() || "?";
+  return `<span class="avatar" style="background:${color}">${escapeHtml(ch)}</span>`;
+}
+function renderPlayerCards() {
   const list = [{ id: state.myId, name: state.name, color: state.color, you: true }, ...net.players.values()];
-  $("lobby-players").innerHTML = list.map((p) =>
-    `<div class="p"><span class="dot" style="background:${p.color}"></span>${escapeHtml(p.name)}` +
-    (p.id === state.adminId ? '<span class="tag-admin">HOST</span>' : "") +
-    (p.you ? '<span class="you">you</span>' : "") + `</div>`
-  ).join("");
+  const cnt = $("setup-count"); if (cnt) cnt.textContent = list.length;
+  const box = $("setup-players"); if (!box) return;
+  box.innerHTML = list.map((p) => {
+    const host = p.id === state.adminId;
+    return `<div class="p">${avatarHtml(p.name, p.color)}` +
+      `<div class="grow"><div class="pname">${escapeHtml(p.name)}${p.you ? '<span class="you-pill">you</span>' : ""}</div>` +
+      `<div class="pmeta">${host ? '<span class="host">★ host</span>' : "<span>player</span>"}</div></div></div>`;
+  }).join("");
 }
 
 // load the image + lay out the puzzle; shared by web, Discord host, and joiners.
@@ -205,10 +230,10 @@ function renderLobbyPlayers() {
 // so a reconnect to an already-running round doesn't rebuild or re-trigger win.
 async function beginGame(config, snapPieces, solo, room) {
   if (state.started && game.config && game.config.seed === config?.seed) return;
-  if (!config || !config.imageURL) { ($("lobby").classList.contains("hidden") ? $("setup-error") : $("lobby-msg")).textContent = "No puzzle to load."; return; }
+  if (!config || !config.imageURL) { $("setup-error").textContent = "No puzzle to load."; return; }
   let img;
   try { img = await loadImage(config.imageURL); }
-  catch (e) { ($("lobby").classList.contains("hidden") ? $("setup-error") : $("lobby-msg")).textContent = e.message; return; }
+  catch (e) { $("setup-error").textContent = e.message; $("waiting-note").textContent = "The host's image failed to load."; return; }
 
   state.started = true;
   state.won = false;
@@ -417,12 +442,12 @@ function updateProgress() {
 // ---------- remote players ----------
 function onPlayer(id, name, color) {
   if (state.started) { renderInfo(false); renderPlayers(false); }
-  else if (state.inDiscord) renderLobbyPlayers();
+  else renderPlayerCards();
 }
 function onPlayerLeave(id) {
   document.getElementById("cur-" + id)?.remove();
   if (state.started) { renderInfo(false); renderPlayers(false); }
-  else if (state.inDiscord) renderLobbyPlayers();
+  else renderPlayerCards();
 }
 function onStart(config) { beginGame(config, [], false, state.room); }
 function onAdmin(id) {
@@ -431,9 +456,10 @@ function onAdmin(id) {
   state.amAdmin = id === state.myId;
   if (!state.started) {
     if (state.amAdmin && !wasAdmin) showHostPicker();
-    renderLobbyPlayers();
+    renderPlayerCards();
   }
 }
+function onSettings(maxPlayers) { if (maxPlayers) $("max-players").value = maxPlayers; }
 function onRemoteMove(id, x, y) {
   const p = game.byId.get(id);
   if (p && (!drag || drag.p !== p)) { if (p.placed) { p.placed = false; game.placed--; updateProgress(); } setPos(p, x, y); }
@@ -574,7 +600,7 @@ function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTi
 buildGallery();
 buildPieceOptions();
 refreshStart();
-net.init({ onPlayer, onPlayerLeave, onStart, onAdmin, onRemoteMove, onRemotePlace, onRemotePickup, onRemoteCursor });
+net.init({ onPlayer, onPlayerLeave, onStart, onAdmin, onSettings, onRemoteMove, onRemotePlace, onRemotePickup, onRemoteCursor });
 
 // room code from ?room=CODE (so a shared link auto-fills the room)
 const urlRoom = new URLSearchParams(location.search).get("room");
@@ -601,10 +627,8 @@ function applyDiscord(d) {
   state.inDiscord = true;
   if (d.username) { state.name = d.username; $("player-name").value = d.username; }
   if (d.instanceId) {
-    // shared per voice channel: hide manual inputs and run the lobby flow
+    // shared per voice channel: run the lobby flow (manual fields hidden inside)
     state.room = "DC-" + d.instanceId;
-    $("name-col").classList.add("hidden");
-    $("room-col").classList.add("hidden");
     enterDiscord();
   }
   // if the SDK gave no instanceId, fall back to the normal manual flow

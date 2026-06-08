@@ -82,7 +82,7 @@ const rooms = new Map(); // code -> { code, config, pieces: Map, players: Map, g
 let nextId = 1;
 
 function room(code) {
-  if (!rooms.has(code)) rooms.set(code, { code, config: null, adminId: null, pieces: new Map(), players: new Map(), graceTimer: null });
+  if (!rooms.has(code)) rooms.set(code, { code, config: null, adminId: null, maxPlayers: 10, pieces: new Map(), players: new Map(), graceTimer: null });
   return rooms.get(code);
 }
 function broadcast(r, msg, exceptId) {
@@ -102,13 +102,15 @@ wss.on("connection", (ws) => {
 
     if (m.t === "join") {
       r = room(m.room);
+      // reject when the room is already at the host-set capacity (game not started)
+      if (!r.config && r.players.size >= r.maxPlayers) { ws.send(JSON.stringify({ t: "full", maxPlayers: r.maxPlayers })); return; }
       if (r.graceTimer) { clearTimeout(r.graceTimer); r.graceTimer = null; } // someone's back
       pid = nextId++;
       if (r.adminId == null) r.adminId = pid;             // first player = admin
       if (!r.config && m.config) r.config = m.config;     // (web host can set on join)
       r.players.set(pid, { name: m.name || "Player", color: m.color || "#5865f2", ws });
       ws.send(JSON.stringify({
-        t: "welcome", id: pid, adminId: r.adminId, config: r.config,
+        t: "welcome", id: pid, adminId: r.adminId, maxPlayers: r.maxPlayers, config: r.config,
         players: [...r.players].filter(([id]) => id !== pid).map(([id, p]) => ({ id, name: p.name, color: p.color })),
         pieces: [...r.pieces].map(([id, s]) => ({ id, x: s.x, y: s.y, placed: s.placed })),
       }));
@@ -122,6 +124,12 @@ wss.on("connection", (ws) => {
         r.config = m.config;
         r.pieces.clear();
         broadcast(r, { t: "start", config: r.config }, pid);
+        break;
+      case "settings": // host changed max players
+        if (pid === r.adminId) {
+          r.maxPlayers = Math.max(2, Math.min(25, parseInt(m.maxPlayers, 10) || 10));
+          broadcast(r, { t: "settings", maxPlayers: r.maxPlayers }, pid);
+        }
         break;
       case "move":
         r.pieces.set(m.id, { x: m.x, y: m.y, placed: false });

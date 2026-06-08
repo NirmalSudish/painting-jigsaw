@@ -7,49 +7,61 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- ===== Setup screen ===== -->
+  <!-- ===== Setup / Lobby screen ===== -->
   <div id="setup" class="screen">
     <div class="setup-card">
       <h1>🧩 Painting Jigsaw <span class="badge">Activity</span></h1>
       <p class="sub">Pick a masterpiece, choose your difficulty, drag the pieces home.</p>
+      <p id="discord-note" class="discord-note hidden">Everyone who joins this channel is added automatically — no code needed.</p>
 
-      <div class="row">
-        <div class="col" id="name-col">
+      <!-- joined players (shown in multiplayer / Discord) -->
+      <div id="players-section" class="hidden">
+        <div class="field-label">Players (<span id="setup-count">1</span>)</div>
+        <div id="setup-players" class="lobby-players"></div>
+      </div>
+
+      <!-- web-only manual name + room -->
+      <div id="manual-fields" class="row">
+        <div class="col">
           <label class="field-label">Your name</label>
           <input id="player-name" class="name-input" type="text" maxlength="16" placeholder="Player" />
         </div>
-        <div class="col" id="room-col">
+        <div class="col">
           <label class="field-label">Room code <span class="hint-inline">(share to play together)</span></label>
           <input id="room-code" class="name-input" type="text" maxlength="8" placeholder="blank = new room" />
         </div>
       </div>
-      <p id="discord-note" class="discord-note hidden"></p>
 
-      <label class="field-label">Painting</label>
-      <div id="gallery" class="gallery"></div>
+      <!-- host settings (painting, pieces, max players) -->
+      <div id="host-settings">
+        <div class="settings-head hidden" id="settings-head">Settings (Host)</div>
 
-      <label class="field-label">Number of pieces</label>
-      <div id="piece-options" class="piece-options"></div>
+        <label class="field-label">Painting</label>
+        <div id="gallery" class="gallery"></div>
 
-      <details class="custom">
-        <summary>Use your own image instead</summary>
-        <input id="custom-url" type="text" placeholder="Paste an image URL (https://...)" />
-        <span class="or">or</span>
-        <input id="custom-file" type="file" accept="image/*" />
-      </details>
+        <div class="row">
+          <div class="col">
+            <label class="field-label">Number of pieces</label>
+            <div id="piece-options" class="piece-options"></div>
+          </div>
+          <div class="col maxplayers hidden" id="maxplayers-wrap">
+            <label class="field-label">Max players</label>
+            <input id="max-players" class="name-input maxnum" type="number" min="2" max="25" value="10" />
+          </div>
+        </div>
 
-      <button id="start-btn" class="primary" disabled>Choose a painting to start</button>
-      <p id="setup-error" class="error"></p>
-    </div>
-  </div>
+        <details class="custom">
+          <summary>Use your own image instead</summary>
+          <input id="custom-url" type="text" placeholder="Paste an image URL (https://...)" />
+          <span class="or">or</span>
+          <input id="custom-file" type="file" accept="image/*" />
+        </details>
 
-  <!-- ===== Lobby (Discord: non-admins wait for the host) ===== -->
-  <div id="lobby" class="screen hidden">
-    <div class="setup-card lobby-card">
-      <h1>🧩 Painting Jigsaw <span class="badge">Activity</span></h1>
-      <p id="lobby-msg" class="sub">Connecting…</p>
-      <div class="field-label">In this room</div>
-      <div id="lobby-players" class="lobby-players"></div>
+        <button id="start-btn" class="primary" disabled>Choose a painting to start</button>
+        <p id="setup-error" class="error"></p>
+      </div>
+
+      <p id="waiting-note" class="sub waiting-note hidden">Waiting for the host to start…</p>
     </div>
   </div>
 
@@ -93,6 +105,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/main.js?v=4"></script>
+  <script type="module" src="src/main.js?v=5"></script>
 </body>
 </html>
