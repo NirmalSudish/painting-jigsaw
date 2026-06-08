@@ -16,8 +16,6 @@
 // player just types their own name. initDiscord() never throws.
 
 const CLIENT_ID = "1513594815617437706"; // Discord application Client ID
-// must be added under the app's OAuth2 → Redirects, and match the server's
-const REDIRECT_URI = "https://painting-jigsaw-production.up.railway.app";
 
 const withTimeout = (p, ms, label) =>
   Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(label + " timeout")), ms))]);
@@ -35,7 +33,7 @@ export async function initDiscord() {
   if (!CLIENT_ID) { console.warn("[discord] CLIENT_ID not set"); return result; }
 
   try {
-    const { DiscordSDK } = await import("../vendor/discord-sdk.js?v=6");
+    const { DiscordSDK } = await import("../vendor/discord-sdk.js?v=7");
     const sdk = new DiscordSDK(CLIENT_ID);
     await withTimeout(sdk.ready(), 5000, "ready");
     result.sdk = sdk;
@@ -43,8 +41,9 @@ export async function initDiscord() {
 
     // optional: resolve the player's Discord name (needs /api/token + secret)
     try {
+      // RPC/activity flow: prompt "none" (silent) and NO redirect_uri
       const { code } = await withTimeout(sdk.commands.authorize({
-        client_id: CLIENT_ID, response_type: "code", state: "", scope: ["identify"], redirect_uri: REDIRECT_URI,
+        client_id: CLIENT_ID, response_type: "code", state: "", prompt: "none", scope: ["identify"],
       }), 8000, "authorize");
       const res = await fetch("/api/token", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }),

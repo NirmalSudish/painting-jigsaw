@@ -25,7 +25,6 @@ const ROOM_GRACE_MS = 90_000; // keep an empty room this long before discarding
 
 const CLIENT_ID = process.env.DISCORD_CLIENT_ID || "1513594815617437706";
 const CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || "";
-const REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || "https://painting-jigsaw-production.up.railway.app";
 
 const MIME = {
   ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
@@ -46,7 +45,7 @@ async function handleToken(req, res) {
     const r = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI }),
+      body: new URLSearchParams({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, grant_type: "authorization_code", code }),
     });
     const data = await r.json();
     res.writeHead(r.ok ? 200 : 400, { "Content-Type": "application/json" });
