@@ -15,7 +15,7 @@
 // tiny server endpoint at /api/token. Without it the activity still runs; the
 // player just types their own name. initDiscord() never throws.
 
-const CLIENT_ID = ""; // <-- your Discord application Client ID
+const CLIENT_ID = "1513594815617437706"; // Discord application Client ID
 
 function inDiscord() {
   return new URLSearchParams(location.search).has("frame_id");
