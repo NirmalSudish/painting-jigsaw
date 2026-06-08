@@ -42,7 +42,11 @@ html, body {
 .hidden { display: none !important; }
 
 /* ============ Setup ============ */
-#setup { display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
+#setup {
+  display: flex; align-items: safe center; justify-content: center; overflow: auto;
+  padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right))
+           max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+}
 .setup-card {
   width: min(860px, 100%);
   background: linear-gradient(180deg, rgba(255,255,255,.03), transparent), var(--bg-1);
@@ -166,7 +170,7 @@ html, body {
 
 /* one big play surface (like a puzzle table) */
 .stage {
-  position: absolute; inset: 0 0 56px 0; overflow: hidden;
+  position: absolute; inset: 0 0 calc(56px + env(safe-area-inset-bottom)) 0; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   background-color: #9aa0a8;
   background-image:
@@ -212,7 +216,7 @@ html, body {
 
 /* top-left info pill */
 .hud-info {
-  position: absolute; top: 12px; left: 12px; z-index: 30;
+  position: absolute; top: calc(12px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)); z-index: 30;
   padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: 700;
   background: rgba(30,31,34,.82); backdrop-filter: blur(8px);
   border: 1px solid var(--line); color: var(--text);
@@ -223,7 +227,7 @@ html, body {
 
 /* players panel (top-right) */
 .players {
-  position: absolute; top: 12px; right: 12px; z-index: 30;
+  position: absolute; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right)); z-index: 30;
   display: flex; flex-direction: column; gap: 6px; max-width: 220px;
 }
 .players .phead {
@@ -240,8 +244,10 @@ html, body {
 
 /* bottom toolbar */
 .toolbar {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 56px;
-  display: flex; align-items: center; gap: 8px; padding: 0 14px;
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: calc(56px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 calc(14px + env(safe-area-inset-right)) env(safe-area-inset-bottom) calc(14px + env(safe-area-inset-left));
   background: rgba(30,31,34,.92); backdrop-filter: blur(8px);
   border-top: 1px solid var(--line); z-index: 40;
 }
