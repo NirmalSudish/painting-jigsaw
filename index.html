@@ -14,15 +14,16 @@
       <p class="sub">Pick a masterpiece, choose your difficulty, drag the pieces home.</p>
 
       <div class="row">
-        <div class="col">
+        <div class="col" id="name-col">
           <label class="field-label">Your name</label>
           <input id="player-name" class="name-input" type="text" maxlength="16" placeholder="Player" />
         </div>
-        <div class="col">
+        <div class="col" id="room-col">
           <label class="field-label">Room code <span class="hint-inline">(share to play together)</span></label>
           <input id="room-code" class="name-input" type="text" maxlength="8" placeholder="blank = new room" />
         </div>
       </div>
+      <p id="discord-note" class="discord-note hidden"></p>
 
       <label class="field-label">Painting</label>
       <div id="gallery" class="gallery"></div>
@@ -45,6 +46,7 @@
   <!-- ===== Game screen ===== -->
   <div id="game" class="screen hidden">
     <div id="hud-info" class="hud-info"></div>
+    <div id="players" class="players"></div>
 
     <div id="stage" class="stage">
       <div id="world" class="world">

@@ -137,6 +137,7 @@ async function startGame() {
   layoutAndBuild();
   applySnapshot(res.pieces || []);
   renderInfo(res.solo);
+  renderPlayers(res.solo);
   startTimer();
 
   window.addEventListener("resize", debounce(fitView, 150));
@@ -322,8 +323,8 @@ function updateProgress() {
 }
 
 // ---------- remote players ----------
-function onPlayer(id, name, color) { renderInfo(false); }
-function onPlayerLeave(id) { document.getElementById("cur-" + id)?.remove(); renderInfo(false); }
+function onPlayer(id, name, color) { renderInfo(false); renderPlayers(false); }
+function onPlayerLeave(id) { document.getElementById("cur-" + id)?.remove(); renderInfo(false); renderPlayers(false); }
 function onRemoteMove(id, x, y) {
   const p = game.byId.get(id);
   if (p && (!drag || drag.p !== p)) { if (p.placed) { p.placed = false; game.placed--; updateProgress(); } setPos(p, x, y); }
@@ -363,6 +364,16 @@ function renderInfo(solo) {
   $("hud-info").innerHTML =
     `<span class="dot" style="background:${state.color}"></span>${escapeHtml(state.name)}` +
     `<span class="muted">· ${escapeHtml(state.imageTitle)} · ${game.total} pcs</span>` + roomTxt;
+}
+
+function renderPlayers(solo) {
+  const panel = $("players");
+  if (solo) { panel.innerHTML = ""; return; }
+  const list = [{ name: state.name, color: state.color, you: true }, ...net.players.values()];
+  panel.innerHTML = `<div class="phead">Players · ${list.length}</div>` +
+    list.map((p) =>
+      `<div class="p"><span class="dot" style="background:${p.color}"></span>${escapeHtml(p.name)}${p.you ? '<span class="you">you</span>' : ""}</div>`
+    ).join("");
 }
 
 // ---------- timer ----------
@@ -435,6 +446,18 @@ refreshStart();
 const urlRoom = new URLSearchParams(location.search).get("room");
 if (urlRoom) { state.room = urlRoom.toUpperCase(); $("room-code").value = state.room; refreshStart(); }
 
-initDiscord().then((d) => {
+initDiscord().then(applyDiscord).catch(() => {});
+
+function applyDiscord(d) {
+  if (!d || !d.inDiscord) return;
+  state.inDiscord = true;
   if (d.username) { state.name = d.username; $("player-name").value = d.username; }
-}).catch(() => {});
+  if (d.instanceId) { state.room = "DC-" + d.instanceId; }   // shared per voice channel
+  // no manual name/room entry inside Discord — both come from the session
+  $("name-col").classList.add("hidden");
+  $("room-col").classList.add("hidden");
+  const note = $("discord-note");
+  note.textContent = `Connected as ${state.name}. Everyone in this voice channel shares the same puzzle — pick one to start, or wait for whoever starts first.`;
+  note.classList.remove("hidden");
+  refreshStart();
+}

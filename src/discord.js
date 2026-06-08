@@ -52,7 +52,9 @@ export async function initDiscord() {
     } catch (e) {
       // OAuth is optional — run anonymously if there's no /api/token endpoint.
     }
-    return { inDiscord: true, sdk, username };
+    // instanceId is unique per launched activity in a voice channel -> use it as
+    // the room code so everyone who joins the activity shares one puzzle.
+    return { inDiscord: true, sdk, username, instanceId: sdk.instanceId };
   } catch (e) {
     console.warn("[discord] SDK init failed:", e);
     return { inDiscord: true, error: e };
