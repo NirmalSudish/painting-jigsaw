@@ -525,7 +525,17 @@ net.init({ onPlayer, onPlayerLeave, onStart, onAdmin, onRemoteMove, onRemotePlac
 const urlRoom = new URLSearchParams(location.search).get("room");
 if (urlRoom) { state.room = urlRoom.toUpperCase(); $("room-code").value = state.room; refreshStart(); }
 
-initDiscord().then(applyDiscord).catch(() => {});
+initDiscord().then((d) => { showDiag(d); applyDiscord(d); }).catch((e) => showDiag({ error: e }));
+
+// temporary on-screen diagnostic (tap to dismiss) — shows what we detected
+function showDiag(d) {
+  const q = location.search || "(none)";
+  const el = document.createElement("div");
+  el.style.cssText = "position:fixed;left:8px;bottom:8px;z-index:9999;max-width:90vw;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.85);color:#9effa1;font:11px/1.4 monospace;white-space:pre-wrap;cursor:pointer";
+  el.textContent = `DIAG  inDiscord=${d?.inDiscord} instance=${d?.instanceId || "-"} err=${d?.error?.message || d?.error || "-"}\nquery=${q}`;
+  el.onclick = () => el.remove();
+  document.body.appendChild(el);
+}
 
 function applyDiscord(d) {
   if (!d || !d.inDiscord) return;
