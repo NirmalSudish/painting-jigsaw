@@ -118,8 +118,9 @@ wss.on("connection", (ws) => {
     if (!r || pid == null) return;
 
     switch (m.t) {
-      case "start": // admin chose the puzzle -> lock it in and tell everyone to begin
-        if (!r.config) r.config = m.config;
+      case "start": // admin chose a puzzle (first game OR play-again) -> reset + begin
+        r.config = m.config;
+        r.pieces.clear();
         broadcast(r, { t: "start", config: r.config }, pid);
         break;
       case "move":

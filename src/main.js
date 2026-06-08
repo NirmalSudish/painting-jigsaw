@@ -1,8 +1,8 @@
-import { PAINTINGS, PIECE_PRESETS } from "./paintings.js?v=3";
-import { buildPuzzle } from "./puzzle.js?v=3";
-import { net } from "./net.js?v=3";
-import { sfx } from "./audio.js?v=3";
-import { initDiscord } from "./discord.js?v=3";
+import { PAINTINGS, PIECE_PRESETS } from "./paintings.js?v=4";
+import { buildPuzzle } from "./puzzle.js?v=4";
+import { net } from "./net.js?v=4";
+import { sfx } from "./audio.js?v=4";
+import { initDiscord } from "./discord.js?v=4";
 
 const $ = (id) => document.getElementById(id);
 const COLORS = ["#5865f2", "#57f287", "#fee75c", "#eb459e", "#4ad9e4", "#f0883e", "#9b59ff"];
@@ -22,7 +22,7 @@ const state = {
   imageURL: null, imageTitle: "", pieces: 24,
   name: "Player", color: COLORS[Math.floor(Math.random() * COLORS.length)],
   room: "",
-  inDiscord: false, lobby: false, started: false,
+  inDiscord: false, lobby: false, started: false, won: false,
   amAdmin: false, myId: null, adminId: null,
 };
 
@@ -74,7 +74,34 @@ function refreshStart() {
 $("player-name").addEventListener("input", (e) => { state.name = e.target.value.trim() || "Player"; });
 $("room-code").addEventListener("input", (e) => { state.room = e.target.value.trim().toUpperCase(); refreshStart(); });
 $("custom-url").addEventListener("input", (e) => { const v = e.target.value.trim(); if (v) selectPainting(null, v, "Custom image"); });
-$("custom-file").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) selectPainting(null, URL.createObjectURL(f), f.name); });
+$("custom-file").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  // embed as a downscaled data URL so the image travels to every player in the
+  // room (a blob: URL only works on the uploader's own machine).
+  fileToDataURL(f, 1400).then((url) => selectPainting(null, url, f.name));
+});
+
+function fileToDataURL(file, maxDim) {
+  return new Promise((resolve) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const cv = document.createElement("canvas");
+        cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(img, 0, 0, w, h);
+        try { resolve(cv.toDataURL("image/jpeg", 0.85)); }
+        catch { resolve(fr.result); }
+      };
+      img.onerror = () => resolve(fr.result);
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
 
 function gridFor(count, aspect) {
   let best = null;
@@ -120,10 +147,10 @@ function buildDesired() {
 async function onStartClick() {
   const desired = buildDesired();
   if (!desired) { $("setup-error").textContent = "Choose a painting first."; return; }
-  if (state.lobby) {                       // Discord host, already in the room
+  if (net.id && !net.solo) {                // already connected (Discord host or restart)
     net.start(desired);
     await beginGame(desired, [], false, state.room);
-  } else {                                 // web
+  } else {                                  // web first start: connect then begin
     $("setup-error").textContent = "";
     const room = state.room || randomRoom();
     const res = await net.connect(room, state.name, state.color, desired);
@@ -173,16 +200,21 @@ function renderLobbyPlayers() {
   ).join("");
 }
 
-// load the image + lay out the puzzle; shared by web, Discord host, and joiners
+// load the image + lay out the puzzle; shared by web, Discord host, and joiners.
+// Called again for "play again" (new seed) — ignores duplicate same-seed starts
+// so a reconnect to an already-running round doesn't rebuild or re-trigger win.
 async function beginGame(config, snapPieces, solo, room) {
-  if (state.started) return;
+  if (state.started && game.config && game.config.seed === config?.seed) return;
   if (!config || !config.imageURL) { ($("lobby").classList.contains("hidden") ? $("setup-error") : $("lobby-msg")).textContent = "No puzzle to load."; return; }
   let img;
   try { img = await loadImage(config.imageURL); }
   catch (e) { ($("lobby").classList.contains("hidden") ? $("setup-error") : $("lobby-msg")).textContent = e.message; return; }
 
   state.started = true;
+  state.won = false;
   state.lobby = false;
+  $("win").classList.add("hidden");
+  clearInterval(game.timerId);
   game.img = img;
   game.config = config;
   game.room = room;
@@ -392,7 +424,7 @@ function onPlayerLeave(id) {
   if (state.started) { renderInfo(false); renderPlayers(false); }
   else if (state.inDiscord) renderLobbyPlayers();
 }
-function onStart(config) { if (!state.started) beginGame(config, [], false, state.room); }
+function onStart(config) { beginGame(config, [], false, state.room); }
 function onAdmin(id) {
   state.adminId = id;
   const wasAdmin = state.amAdmin;
@@ -466,11 +498,34 @@ function startTimer() {
 
 // ---------- win ----------
 function winGame() {
+  if (state.won) return;       // fire once per round
+  state.won = true;
   clearInterval(game.timerId);
-  $("win-text").textContent = `${state.imageTitle} — ${game.total} pieces in ${$("timer").textContent}.`;
+  const base = `${state.imageTitle} — ${game.total} pieces in ${$("timer").textContent}.`;
+  const canRestart = !state.inDiscord || state.amAdmin || net.solo;
+  $("win-text").textContent = canRestart ? base : base + " Waiting for the host to start a new game…";
+  $("win-again").classList.toggle("hidden", !canRestart);
   $("win").classList.remove("hidden");
   sfx.win();
   confetti();
+}
+
+// "Play again" — no page reload (reloading re-joined the solved room and looped
+// the win popup). Return the host to the picker; others wait for the new start.
+function playAgain() {
+  state.started = false;
+  state.won = false;
+  game.config = null;
+  clearInterval(game.timerId);
+  $("win").classList.add("hidden");
+  $("game").classList.add("hidden");
+  if (state.inDiscord) {
+    showHostPicker();                 // name/room stay hidden
+  } else {
+    state.lobby = false;
+    $("setup").classList.remove("hidden");
+    refreshStart();
+  }
 }
 function confetti() {
   for (let i = 0; i < 130; i++) {
@@ -487,7 +542,7 @@ function confetti() {
 // ---------- toolbar ----------
 $("start-btn").onclick = onStartClick;
 $("back-btn").onclick = () => location.reload();
-$("win-again").onclick = () => location.reload();
+$("win-again").onclick = playAgain;
 $("shuffle-btn").onclick = () => {
   const rng = Math.random;
   game.pieces.forEach((p) => {

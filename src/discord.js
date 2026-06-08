@@ -33,7 +33,7 @@ export async function initDiscord() {
   if (!CLIENT_ID) { console.warn("[discord] CLIENT_ID not set"); return result; }
 
   try {
-    const { DiscordSDK } = await import("../vendor/discord-sdk.js?v=3");
+    const { DiscordSDK } = await import("../vendor/discord-sdk.js?v=4");
     const sdk = new DiscordSDK(CLIENT_ID);
     await withTimeout(sdk.ready(), 5000, "ready");
     result.sdk = sdk;
@@ -42,8 +42,8 @@ export async function initDiscord() {
     // optional: resolve the player's Discord name (needs /api/token + secret)
     try {
       const { code } = await withTimeout(sdk.commands.authorize({
-        client_id: CLIENT_ID, response_type: "code", state: "", prompt: "none", scope: ["identify"],
-      }), 6000, "authorize");
+        client_id: CLIENT_ID, response_type: "code", state: "", scope: ["identify"],
+      }), 8000, "authorize");
       const res = await fetch("/api/token", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }),
       });
