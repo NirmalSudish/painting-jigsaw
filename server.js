@@ -68,10 +68,11 @@ const server = http.createServer((req, res) => {
     const ext = path.extname(file);
     // never cache code/markup so a new deploy shows up on the next launch;
     // images are content-stable, let them cache.
-    const cache = [".jpg", ".png", ".svg", ".ico"].includes(ext)
-      ? "public, max-age=86400"
-      : "no-cache";
-    res.writeHead(200, { "Content-Type": MIME[ext] || "application/octet-stream", "Cache-Control": cache });
+    const isImg = [".jpg", ".png", ".svg", ".ico"].includes(ext);
+    const headers = { "Content-Type": MIME[ext] || "application/octet-stream" };
+    if (isImg) headers["Cache-Control"] = "public, max-age=86400";
+    else { headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"; headers["Pragma"] = "no-cache"; headers["Expires"] = "0"; }
+    res.writeHead(200, headers);
     res.end(data);
   });
 });

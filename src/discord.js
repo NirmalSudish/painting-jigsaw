@@ -33,7 +33,7 @@ export async function initDiscord() {
   if (!CLIENT_ID) { console.warn("[discord] CLIENT_ID not set"); return result; }
 
   try {
-    const { DiscordSDK } = await import("../vendor/discord-sdk.js");
+    const { DiscordSDK } = await import("../vendor/discord-sdk.js?v=3");
     const sdk = new DiscordSDK(CLIENT_ID);
     await withTimeout(sdk.ready(), 5000, "ready");
     result.sdk = sdk;

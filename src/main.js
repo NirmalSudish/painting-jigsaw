@@ -1,8 +1,8 @@
-import { PAINTINGS, PIECE_PRESETS } from "./paintings.js";
-import { buildPuzzle } from "./puzzle.js";
-import { net } from "./net.js";
-import { sfx } from "./audio.js";
-import { initDiscord } from "./discord.js";
+import { PAINTINGS, PIECE_PRESETS } from "./paintings.js?v=3";
+import { buildPuzzle } from "./puzzle.js?v=3";
+import { net } from "./net.js?v=3";
+import { sfx } from "./audio.js?v=3";
+import { initDiscord } from "./discord.js?v=3";
 
 const $ = (id) => document.getElementById(id);
 const COLORS = ["#5865f2", "#57f287", "#fee75c", "#eb459e", "#4ad9e4", "#f0883e", "#9b59ff"];
