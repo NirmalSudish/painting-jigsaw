@@ -42,7 +42,7 @@ export const net = {
           this.solo = false;
           this.id = m.id;
           (m.players || []).forEach((p) => this.players.set(p.id, p));
-          done({ solo: false, config: m.config, players: m.players || [], pieces: m.pieces || [], id: m.id });
+          done({ solo: false, config: m.config, adminId: m.adminId, players: m.players || [], pieces: m.pieces || [], id: m.id });
           return;
         }
         this._handle(m);
@@ -55,6 +55,8 @@ export const net = {
     switch (m.t) {
       case "player": this.players.set(m.id, { id: m.id, name: m.name, color: m.color }); c.onPlayer?.(m.id, m.name, m.color); break;
       case "leave":  this.players.delete(m.id); c.onPlayerLeave?.(m.id); break;
+      case "start":  c.onStart?.(m.config); break;
+      case "admin":  c.onAdmin?.(m.id); break;
       case "move":   c.onRemoteMove?.(m.id, m.x, m.y); break;
       case "place":  c.onRemotePlace?.(m.id); break;
       case "pickup": c.onRemotePickup?.(m.id); break;
@@ -68,6 +70,7 @@ export const net = {
 
   _send(o) { if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify(o)); },
 
+  start(config) { this._send({ t: "start", config }); },
   move(id, x, y) { this._send({ t: "move", id, x, y }); },
   place(id) { this._send({ t: "place", id }); },
   pickup(id) { this._send({ t: "pickup", id }); },

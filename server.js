@@ -75,7 +75,7 @@ const rooms = new Map(); // code -> { code, config, pieces: Map, players: Map, g
 let nextId = 1;
 
 function room(code) {
-  if (!rooms.has(code)) rooms.set(code, { code, config: null, pieces: new Map(), players: new Map(), graceTimer: null });
+  if (!rooms.has(code)) rooms.set(code, { code, config: null, adminId: null, pieces: new Map(), players: new Map(), graceTimer: null });
   return rooms.get(code);
 }
 function broadcast(r, msg, exceptId) {
@@ -97,10 +97,11 @@ wss.on("connection", (ws) => {
       r = room(m.room);
       if (r.graceTimer) { clearTimeout(r.graceTimer); r.graceTimer = null; } // someone's back
       pid = nextId++;
-      if (!r.config && m.config) r.config = m.config; // first player sets the puzzle
+      if (r.adminId == null) r.adminId = pid;             // first player = admin
+      if (!r.config && m.config) r.config = m.config;     // (web host can set on join)
       r.players.set(pid, { name: m.name || "Player", color: m.color || "#5865f2", ws });
       ws.send(JSON.stringify({
-        t: "welcome", id: pid, config: r.config,
+        t: "welcome", id: pid, adminId: r.adminId, config: r.config,
         players: [...r.players].filter(([id]) => id !== pid).map(([id, p]) => ({ id, name: p.name, color: p.color })),
         pieces: [...r.pieces].map(([id, s]) => ({ id, x: s.x, y: s.y, placed: s.placed })),
       }));
@@ -110,6 +111,10 @@ wss.on("connection", (ws) => {
     if (!r || pid == null) return;
 
     switch (m.t) {
+      case "start": // admin chose the puzzle -> lock it in and tell everyone to begin
+        if (!r.config) r.config = m.config;
+        broadcast(r, { t: "start", config: r.config }, pid);
+        break;
       case "move":
         r.pieces.set(m.id, { x: m.x, y: m.y, placed: false });
         broadcast(r, { t: "move", id: m.id, x: m.x, y: m.y }, pid);
@@ -132,6 +137,11 @@ wss.on("connection", (ws) => {
     if (!r || pid == null) return;
     r.players.delete(pid);
     broadcast(r, { t: "leave", id: pid });
+    // if the admin left before starting, hand admin to the next player
+    if (pid === r.adminId) {
+      r.adminId = r.players.size ? Math.min(...r.players.keys()) : null;
+      if (r.adminId != null) broadcast(r, { t: "admin", id: r.adminId });
+    }
     // only tear the room (and its progress) down once EVERYONE has left
     if (r.players.size === 0) {
       r.graceTimer = setTimeout(() => { if (r.players.size === 0) rooms.delete(r.code); }, ROOM_GRACE_MS);
